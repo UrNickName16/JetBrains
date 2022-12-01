@@ -1,0 +1,126 @@
+from defs import turn, free_spots, game_state, get_winning_pos, show_map
+from random import choice
+from time import sleep
+
+
+class User:
+    def __init__(self, sign: str):
+        self.sign = sign
+        if self.sign == 'X':
+            self.opponent_sign = 'O'
+        else:
+            self.opponent_sign = 'X'
+    
+    def move(self, game_map):
+        while True:
+            try:
+                x, y = map(int, input('Enter the coordinates: > ').split())
+            except ValueError:
+                print('Wrong input! Coordinates must be numbers!')
+                continue
+
+            if x < 1 or x > 3 or y < 1 or y > 3:
+                print('Wrong input! Must be between 1 and 3')
+                continue
+            if game_map[(x - 1) * 3 + y - 1] != ' ':
+                print('Wrong input! Selected cell is occupied')
+                continue
+            break
+
+        game_map = turn(game_map, (x - 1) * 3 + y - 1, self.sign)
+
+        return game_map
+
+
+class Easy(User):
+    def move(self, game_map):
+        fs = free_spots(game_map)
+        x = choice(fs)
+        print('Making move level "easy"')
+        game_map = turn(game_map, x, self.sign)
+        
+        return game_map
+
+
+class Medium(User):
+    def move(self, game_map):
+
+        if get_winning_pos(game_map, self.sign): # Try to make a winning turn
+            x = get_winning_pos(game_map, self.sign)
+            print('Making move level "medium"')
+            game_map = turn(game_map, x, self.sign)
+
+            return game_map
+        
+        if get_winning_pos(game_map, self.opponent_sign): # Try to prevent opponent from winning
+            x = get_winning_pos(game_map, self.opponent_sign)
+            print('Making move level "medium"')
+            game_map = turn(game_map, x, self.sign)
+
+            return game_map
+        
+        x = choice(free_spots(game_map))
+        print('Making move level "medium"')
+        game_map = turn(game_map, x, self.sign)
+
+        return game_map
+
+
+class Hard(User):
+    def move(self, game_map):
+        x = self.minimax(game_map, self.sign)['index']
+        print('Making move level "hard"')
+        game_map = turn(game_map, x, self.sign)
+
+        return game_map
+
+
+    def minimax(self, game_map, sign, depth=0):
+        fs = free_spots(game_map)
+        
+        if depth != 0:
+            if game_state(game_map) == self.opponent_sign:
+                return -100 + depth
+
+            if game_state(game_map) == self.sign:
+                return 100 - depth
+            
+            if len(fs) == 0:
+                return 0
+        
+        moves = []
+        for x in fs:
+            move = {}
+
+            game_map[x] = sign
+            move['index'] = x
+
+            if sign == self.sign:
+                result = self.minimax(game_map, self.opponent_sign, depth + 1)
+            else:
+                result = self.minimax(game_map, self.sign, depth + 1)
+            game_map[x] = ' '
+
+            if type(result) == int:
+                move['score'] = result
+            else:
+                move['score'] = result['score']
+            game_map[x] = ' '
+
+            moves.append(move)
+        
+        if sign == self.sign:
+            best_score = -1000
+            for move in moves:
+                if move['score'] > best_score:
+                    best_score = move['score']
+                    best_move = move
+        
+        else:
+            best_score = 1000
+            for move in moves:
+                if move['score'] < best_score:
+                    best_score = move['score']
+                    best_move = move
+
+        return best_move
